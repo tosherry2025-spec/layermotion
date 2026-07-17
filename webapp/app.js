@@ -204,12 +204,15 @@ function buildLayerList() {
     const row=document.createElement("div");
     row.className="layer-row"+(i===selected?" active":"");
     row.draggable=true; row.dataset.idx=i;
-    row.innerHTML=`<span style="cursor:grab;color:#c9a7e0">⠿</span>
+    row.innerHTML=`<span class="drag" style="cursor:grab;color:#c9a7e0">⠿</span>
       <input type="checkbox" ${L.visible?"checked":""}>
       <span class="nm" title="${L.name}">${L.name}</span>
-      <span class="depth-badge">${STYLES[L.style]}</span>`;
-    row.addEventListener("click",e=>{ if(e.target.type!=="checkbox") selectLayer(i); });
+      <span class="depth-badge">${STYLES[L.style]}</span>
+      <span class="ord"><button data-up title="上移(更靠前)">▲</button><button data-dn title="下移(更靠后)">▼</button></span>`;
+    row.addEventListener("click",e=>{ if(e.target.type!=="checkbox" && e.target.tagName!=="BUTTON") selectLayer(i); });
     row.querySelector("input").addEventListener("change",e=>{ L.visible=e.target.checked; });
+    row.querySelector("[data-up]").addEventListener("click",e=>{ e.stopPropagation(); moveLayer(i,1); });
+    row.querySelector("[data-dn]").addEventListener("click",e=>{ e.stopPropagation(); moveLayer(i,-1); });
     // 拖拽排序
     row.addEventListener("dragstart",e=>{ e.dataTransfer.setData("text/plain",i); row.style.opacity=".4"; });
     row.addEventListener("dragend",()=>{ row.style.opacity="1"; });
@@ -226,6 +229,12 @@ function reorder(src, dst){
   if(selected===src) selected=dst;
   else if(src<selected && dst>=selected) selected--;
   else if(src>selected && dst<=selected) selected++;
+  buildLayerList(); buildEditor(); updateAnchorHandle();
+}
+function moveLayer(i, delta){ // delta +1=上移(更靠前/更高 z) -1=下移
+  const j=i+delta; if(j<0||j>=layers.length) return;
+  [layers[i],layers[j]]=[layers[j],layers[i]];
+  if(selected===i) selected=j; else if(selected===j) selected=i;
   buildLayerList(); buildEditor(); updateAnchorHandle();
 }
 function selectLayer(i){ selected=i; buildLayerList(); buildEditor(); updateAnchorHandle(); }
@@ -259,13 +268,17 @@ function buildEditor(){
 const handle=document.createElement("div"); handle.className="anchor-handle"; anchorLayer.appendChild(handle);
 (function(){
   let dragging=false;
-  const move=e=>{ if(!dragging||selected<0)return; const r=canvas.getBoundingClientRect();
-    layers[selected].anchorX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
-    layers[selected].anchorY=Math.max(0,Math.min(1.1,(e.clientY-r.top)/r.height));
+  const moveTo=(cx,cy)=>{ if(selected<0)return; const r=canvas.getBoundingClientRect();
+    layers[selected].anchorX=Math.max(0,Math.min(1,(cx-r.left)/r.width));
+    layers[selected].anchorY=Math.max(0,Math.min(1.1,(cy-r.top)/r.height));
     buildEditor(); updateAnchorHandle(); };
   handle.addEventListener("mousedown",e=>{dragging=true; handle.style.cursor="grabbing"; e.preventDefault();});
-  window.addEventListener("mousemove",move);
+  window.addEventListener("mousemove",e=>{ if(dragging) moveTo(e.clientX,e.clientY); });
   window.addEventListener("mouseup",()=>{dragging=false; handle.style.cursor="grab";});
+  // 触屏支持
+  handle.addEventListener("touchstart",e=>{ dragging=true; e.preventDefault(); },{passive:false});
+  window.addEventListener("touchmove",e=>{ if(dragging&&e.touches[0]){ moveTo(e.touches[0].clientX,e.touches[0].clientY); e.preventDefault(); } },{passive:false});
+  window.addEventListener("touchend",()=>{ dragging=false; });
 })();
 function updateAnchorHandle(){
   const L=layers[selected];

@@ -90,6 +90,22 @@
     font-size:12px; color:#a0567d; text-align:center; line-height:1.7; }
   .author a { color:var(--pink); text-decoration:none; font-weight:bold; }
   .author a:hover { text-decoration:underline; }
+  /* 图层排序按钮 */
+  .layer-row .ord { display:flex; flex-direction:column; gap:1px; }
+  .layer-row .ord button { padding:0 6px; font-size:9px; line-height:1.35; background:#eadff5; color:var(--purple); }
+
+  /* ===== 移动端适配 ===== */
+  @media (max-width: 820px) {
+    body { flex-direction:column; height:auto; min-height:100vh; overflow-y:auto; }
+    .stage-wrap { position:sticky; top:0; z-index:30; width:100%; padding:10px;
+      background:var(--bg); box-shadow:0 2px 10px rgba(0,0,0,.06); gap:8px; }
+    #canvas { max-width:100%; max-height:42vh; height:auto; width:auto; }
+    .anchor-handle { width:30px; height:30px; margin:-15px 0 0 -15px; }
+    .panel { width:100%; max-height:none; box-shadow:none; padding:16px; }
+    .toolbar { flex-wrap:wrap; justify-content:center; }
+    .grid-btns { grid-template-columns:repeat(4,1fr); }
+    .layer-row .ord button { padding:2px 10px; font-size:11px; } /* 触屏更好点 */
+  }
 </style>
 </head>
 <body>
@@ -169,6 +185,6 @@
 
   <script src="lib/ag-psd.js"></script>
   <script src="lib/gif.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

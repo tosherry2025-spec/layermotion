@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerMotion · 图层动画 Meme 工作室</title>
+<style>
+  :root { --pink:#ec4899; --purple:#a05fc4; --bg:#f2eef6; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    font-family:"Segoe UI","Microsoft YaHei",sans-serif; background:var(--bg);
+    color:#333; display:flex; height:100vh; overflow:hidden;
+  }
+
+  /* ===== 舞台 ===== */
+  .stage-wrap { flex:1; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:14px; padding:20px; position:relative; }
+  #stageOuter { position:relative; border-radius:14px; overflow:hidden;
+    box-shadow:0 10px 40px rgba(0,0,0,.13); background:#fff; }
+  /* 透明背景预览：棋盘格 */
+  #stageOuter.checker {
+    background-image:
+      linear-gradient(45deg,#ddd 25%,transparent 25%),
+      linear-gradient(-45deg,#ddd 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#ddd 75%),
+      linear-gradient(-45deg,transparent 75%,#ddd 75%);
+    background-size:20px 20px;
+    background-position:0 0,0 10px,10px -10px,-10px 0;
+  }
+  #canvas { display:block; }
+  #anchorLayer { position:absolute; inset:0; pointer-events:none; z-index:50; }
+  .anchor-handle { position:absolute; width:22px; height:22px; margin:-11px 0 0 -11px;
+    border:3px solid var(--pink); border-radius:50%; background:rgba(255,255,255,.5);
+    cursor:grab; pointer-events:auto; box-shadow:0 0 0 2px rgba(255,255,255,.9); }
+  .anchor-handle::after { content:""; position:absolute; inset:7px; background:var(--pink); border-radius:50%; }
+
+  /* ===== 拖拽上传遮罩 ===== */
+  #dropzone { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; background:rgba(242,238,246,.97);
+    z-index:100; text-align:center; padding:30px; }
+  #dropzone.hide { display:none; }
+  #dropzone.dragover { background:#f7ebfb; outline:3px dashed var(--pink); outline-offset:-16px; }
+  #dropzone h2 { font-size:22px; margin:0; color:var(--purple); }
+  #dropzone p { color:#888; margin:0; font-size:14px; max-width:420px; line-height:1.6; }
+  .up-btns { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .up-btns button { padding:12px 20px; font-size:14px; }
+
+  .toolbar { display:flex; gap:8px; align-items:center; font-size:13px; color:#777; }
+  .toolbar button { background:#fff; color:var(--purple); border:1px solid #e0d3ec; }
+
+  /* ===== 侧栏 ===== */
+  .panel { width:360px; background:#fff; padding:18px; overflow-y:auto; flex-shrink:0;
+    box-shadow:-4px 0 20px rgba(0,0,0,.06); }
+  h1 { font-size:18px; margin:0 0 2px; }
+  .brand-sub { font-size:12px; color:#b58fd0; margin-bottom:12px; }
+  h2 { font-size:14px; margin:18px 0 8px; color:var(--purple);
+    border-top:1px solid #eee; padding-top:14px; }
+  .hint { font-size:12px; color:#999; margin:6px 0 12px; line-height:1.5; }
+
+  .layer-row { display:flex; align-items:center; gap:7px; padding:7px 8px; border-radius:8px;
+    margin-bottom:4px; background:#faf8fc; cursor:pointer; border:2px solid transparent; }
+  .layer-row:hover { background:#f2ebf8; }
+  .layer-row.active { border-color:var(--pink); background:#fdeef5; }
+  .layer-row input[type=checkbox] { width:16px; height:16px; }
+  .layer-row .nm { flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .layer-row .depth-badge { font-size:10px; color:#b58fd0; background:#f0e6f8; padding:2px 6px; border-radius:10px; }
+  .layer-row .ord { display:flex; flex-direction:column; }
+  .layer-row .ord button { padding:0 5px; font-size:9px; line-height:1.2; background:#eadff5; color:var(--purple); }
+
+  .editor { background:#faf6fd; border-radius:10px; padding:12px; margin-top:8px; }
+  .editor .title { font-size:13px; font-weight:bold; color:var(--pink); margin-bottom:8px; }
+  label { display:block; font-size:12px; margin:10px 0 3px; color:#555; }
+  input[type=range] { width:100%; }
+  select { width:100%; padding:5px; border-radius:6px; border:1px solid #ddd; font-size:12px; }
+  .val { color:var(--pink); font-weight:bold; }
+  button { padding:9px 12px; border:none; border-radius:8px; background:#ec7fa9; color:#fff;
+    font-size:13px; cursor:pointer; }
+  button:hover { filter:brightness(1.05); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .grid-btns { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .grid-btns button { background:#c9a7e0; padding:8px 2px; font-size:11px; }
+  .grid-btns button.on { background:var(--pink); }
+  .row2 { display:flex; gap:8px; } .row2>* { flex:1; }
+  .fullbtn { width:100%; margin-top:8px; }
+  code { background:#f0e6f8; padding:1px 5px; border-radius:4px; font-size:11px; }
+  #exportStatus { font-size:12px; color:var(--purple); margin-top:8px; min-height:16px; }
+  .hidden-input { display:none; }
+  .author { margin:12px 0 16px; padding:10px 12px; background:#fdeef5; border-radius:10px;
+    font-size:12px; color:#a0567d; text-align:center; line-height:1.7; }
+  .author a { color:var(--pink); text-decoration:none; font-weight:bold; }
+  .author a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+  <div class="stage-wrap">
+    <div id="stageOuter">
+      <canvas id="canvas" width="373" height="498"></canvas>
+      <div id="anchorLayer"></div>
+      <div id="dropzone">
+        <h2>🎬 LayerMotion</h2>
+        <p>若上传透明 <b>PNG</b>，请每张一层。<br>💡 素材最好是<b>透明底</b>的，图层之间才不会互相遮挡，也才能导出透明背景。</p>
+        <div class="up-btns">
+          <button id="btnPsd">上传 PSD</button>
+          <button id="btnPng">上传 PNG 图层</button>
+          <button id="btnDemo" style="background:var(--purple)">▶ 试用示例</button>
+        </div>
+        <p style="font-size:12px">图片都在你的浏览器本地处理，很安全哦 (๑•̀ㅂ•́)و✧</p>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button id="toggleAnchor">显示/隐藏锚点</button>
+      <button id="btnReplace">换素材</button>
+      <span id="status"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h1>🎬 LayerMotion</h1>
+    <div class="brand-sub">图层动画 Meme工具</div>
+    <div class="author">
+      问题反馈、更多建议，都欢迎来给我留言 (*^▽^*)<br>
+      <a href="https://xhslink.com/m/2SDL0vkKJ2P" target="_blank" rel="noopener">🌸 koguko_ring（空谷呤）· 小红书</a>
+    </div>
+
+    <div id="layerList"></div>
+    <div id="editorBox"></div>
+
+    <h2>🎞️ 整体动作</h2>
+    <div class="grid-btns" id="motionBtns"></div>
+    <label>速度 <span class="val" id="speedVal">1.1</span>x</label>
+    <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1.1">
+    <label>幅度 <span class="val" id="ampVal">0.6</span>x</label>
+    <input type="range" id="amp" min="0" max="3" step="0.1" value="0.6">
+    <label>错落感 <span class="val" id="ftVal">0.0</span></label>
+    <input type="range" id="ft" min="0" max="1" step="0.05" value="0">
+    <p class="hint">错落感＝各部位依次带动的“跟随/波浪”感；<b>0＝所有部位完全同步</b>。</p>
+
+    <h2>🧊 伪3D视差</h2>
+    <button id="p3mode" style="background:var(--purple);width:100%">模式：自动摆动</button>
+    <label>视差强度 <span class="val" id="p3Val">0.0</span>x</label>
+    <input type="range" id="p3amp" min="0" max="3" step="0.1" value="0">
+    <p class="hint">鼠标模式：光标移到画面上，角色会朝光标看。</p>
+
+    <h2>💾 导出</h2>
+    <div class="row2">
+      <div><label>时长(秒) <span class="val" id="durVal">2.0</span></label>
+        <input type="range" id="dur" min="0.5" max="6" step="0.5" value="2"></div>
+      <div><label>帧率 <span class="val" id="fpsVal">20</span></label>
+        <input type="range" id="fps" min="10" max="30" step="5" value="20"></div>
+    </div>
+    <label>清晰度 <span class="val" id="scaleVal">1.0</span>x</label>
+    <input type="range" id="expScale" min="0.5" max="2" step="0.5" value="1">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer">
+      <input type="checkbox" id="bgTransparent" style="width:16px;height:16px"> 透明背景（关闭背景色）
+    </label>
+    <p class="hint">⚠️ 透明背景只对<b>本身就是透明底</b>的素材有效（导入的 PSD / PNG 必须带透明通道）。GIF 支持透明；<b>视频(MP4/WebM)不支持透明</b>，导出视频时仍用白底。</p>
+    <button class="fullbtn" id="exportGif">导出 GIF</button>
+    <button class="fullbtn" id="exportVideo" style="background:var(--purple)">导出视频（MP4）</button>
+    <div id="exportStatus"></div>
+    <p class="hint" id="fmtHint" style="margin-top:6px"></p>
+  </div>
+
+  <input type="file" id="filePsd" class="hidden-input" accept=".psd">
+  <input type="file" id="filePng" class="hidden-input" accept="image/png,image/*" multiple>
+
+  <script src="https://cdn.jsdelivr.net/npm/ag-psd@21.0.0/dist/bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+  <script src="app.js?v=5"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Kiro 内部文件（不公开）
+.kiro/
+
+# 本地文档（仅本地保留，不进公开仓库）
+PROJECT_HANDOVER.md
+SETUP-DEPLOY.md
+新手部署指南.md
+
+# 归档：旧原型 / 旧脚本 / 旧图层 / 历史备份（本地保留）
+_archive/
+
+# 原始 PSD（源文件，不入库）
+*.psd
+
+# Python
+__pycache__/
+*.pyc
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+.vscode/

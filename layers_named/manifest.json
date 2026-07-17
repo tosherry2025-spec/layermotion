@@ -1,0 +1,99 @@
+{
+  "canvas": [
+    1242,
+    1660
+  ],
+  "layers": [
+    {
+      "index": 0,
+      "name": "后发（放在耳朵后面",
+      "path": "后发（放在耳朵后面",
+      "file": "layers_named/00_后发_放在耳朵后面.png",
+      "bbox": [
+        538,
+        701,
+        865,
+        895
+      ],
+      "visible": true
+    },
+    {
+      "index": 1,
+      "name": "左耳朵",
+      "path": "左耳朵",
+      "file": "layers_named/01_左耳朵.png",
+      "bbox": [
+        542,
+        722,
+        633,
+        843
+      ],
+      "visible": true
+    },
+    {
+      "index": 2,
+      "name": "左手",
+      "path": "左手",
+      "file": "layers_named/02_左手.png",
+      "bbox": [
+        636,
+        862,
+        744,
+        1053
+      ],
+      "visible": true
+    },
+    {
+      "index": 3,
+      "name": "裙子和腿",
+      "path": "裙子和腿",
+      "file": "layers_named/03_裙子和腿.png",
+      "bbox": [
+        687,
+        1008,
+        916,
+        1339
+      ],
+      "visible": true
+    },
+    {
+      "index": 4,
+      "name": "上半身躯干",
+      "path": "上半身躯干",
+      "file": "layers_named/04_上半身躯干.png",
+      "bbox": [
+        684,
+        836,
+        874,
+        1038
+      ],
+      "visible": true
+    },
+    {
+      "index": 5,
+      "name": "右手",
+      "path": "右手",
+      "file": "layers_named/05_右手.png",
+      "bbox": [
+        826,
+        875,
+        939,
+        1018
+      ],
+      "visible": true
+    },
+    {
+      "index": 6,
+      "name": "头",
+      "path": "头",
+      "file": "layers_named/06_头.png",
+      "bbox": [
+        480,
+        355,
+        1122,
+        896
+      ],
+      "visible": true
+    }
+  ]
+}

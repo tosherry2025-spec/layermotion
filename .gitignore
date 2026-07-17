@@ -12,6 +12,9 @@ _archive/
 # 原始 PSD（源文件，不入库）
 *.psd
 
+# 原始大 GIF 导出（很大，只留本地；仓库用 webapp/preview.gif 轻量版）
+/meme*.gif
+
 # Python
 __pycache__/
 *.pyc

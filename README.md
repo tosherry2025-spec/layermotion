@@ -4,6 +4,8 @@
 
 **🌐 在线使用：** https://tosherry2025-spec.github.io/layermotion/
 
+![演示](webapp/preview.gif)
+
 ---
 
 ## ✨ 特性

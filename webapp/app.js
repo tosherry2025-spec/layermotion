@@ -335,8 +335,8 @@ function track(name){ try{ if(window.goatcounter&&window.goatcounter.count) wind
 let gifWorkerUrl=null;
 async function getGifWorkerUrl(){
   if(gifWorkerUrl) return gifWorkerUrl;
-  const res=await fetch("https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js");
-  if(!res.ok) throw new Error("worker 下载失败 "+res.status);
+  const res=await fetch("lib/gif.worker.js");
+  if(!res.ok) throw new Error("worker 加载失败 "+res.status);
   gifWorkerUrl=URL.createObjectURL(new Blob([await res.text()],{type:"application/javascript"}));
   return gifWorkerUrl;
 }

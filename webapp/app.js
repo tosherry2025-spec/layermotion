@@ -87,6 +87,7 @@ function loadImage(src){ return new Promise((res,rej)=>{ const im=new Image(); i
 // ===== 三种素材来源 =====
 async function loadDemo() {
   try {
+    statusEl.textContent = "示例加载中…（图片较多，请稍候，约十几秒~1 分钟）";
     const data = await (await fetch("demo/manifest.json")).json();
     CANVAS_W=data.canvas[0]; CANVAS_H=data.canvas[1]; layers=[];
     for (const L of data.layers) {
@@ -99,13 +100,21 @@ async function loadDemo() {
   } catch(e){ alert("示例加载失败："+e); }
 }
 async function loadPngs(fileList) {
-  const files=[...fileList].sort((a,b)=>a.name.localeCompare(b.name));
-  const imgs=[]; for (const f of files) imgs.push({ name:f.name.replace(/\.[^.]+$/,""), img:await loadImage(URL.createObjectURL(f)) });
-  if(!imgs.length) return;
-  CANVAS_W=Math.max(...imgs.map(o=>o.img.naturalWidth));
-  CANVAS_H=Math.max(...imgs.map(o=>o.img.naturalHeight));
-  layers=imgs.map(o=>makeLayer(o.name,o.img,0,0,o.img.naturalWidth,o.img.naturalHeight));
-  afterLoad(`${layers.length} 张 PNG 图层`);
+  try {
+    statusEl.textContent = "正在读取图层…";
+    const files=[...fileList].sort((a,b)=>a.name.localeCompare(b.name));
+    const imgs=[];
+    for (const f of files) {
+      const url=URL.createObjectURL(f);
+      try { imgs.push({ name:f.name.replace(/\.[^.]+$/,""), img:await loadImage(url) }); }
+      catch(err){ console.warn("跳过无法读取的文件:", f.name, err); }
+    }
+    if(!imgs.length){ statusEl.textContent=""; alert("没能读取到有效图片，请确认上传的是 PNG 图片（透明底效果最好）。"); return; }
+    CANVAS_W=Math.max(...imgs.map(o=>o.img.naturalWidth));
+    CANVAS_H=Math.max(...imgs.map(o=>o.img.naturalHeight));
+    layers=imgs.map(o=>makeLayer(o.name,o.img,0,0,o.img.naturalWidth,o.img.naturalHeight));
+    afterLoad(`${layers.length} 张 PNG 图层`);
+  } catch(e){ statusEl.textContent=""; alert("上传失败："+(e&&e.message?e.message:e)); }
 }
 async function loadPsd(file) {
   try {

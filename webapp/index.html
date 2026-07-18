@@ -131,6 +131,7 @@
           <button id="btnPng">上传 PNG 图层</button>
           <button id="btnDemo" style="background:var(--purple)">▶ 试用示例</button>
         </div>
+        <p class="hint" style="margin:0">点「试用示例」后，首次加载图片可能要等十几秒~1 分钟，请耐心等一下 (´｡• ᵕ •｡`)</p>
         <p style="font-size:12px">图片都在你的浏览器本地处理，很安全哦 (๑•̀ㅂ•́)و✧</p>
       </div>
     </div>
@@ -166,7 +167,7 @@
     <button id="p3mode" style="background:var(--purple);width:100%">模式：自动摆动</button>
     <label>视差强度 <span class="val" id="p3Val">0.0</span>x</label>
     <input type="range" id="p3amp" min="0" max="3" step="0.1" value="0">
-    <p class="hint">鼠标模式：光标移到画面上，角色会朝光标看。</p>
+    <p class="hint">鼠标模式：光标移到画面上，角色会朝光标看。<br>📌 此功能依赖鼠标/指针，手机、平板效果有限，<b>建议电脑端使用</b>。</p>
 
     <h2>💾 导出</h2>
     <div class="row2">
@@ -187,7 +188,7 @@
     <p class="hint" id="fmtHint" style="margin-top:6px"></p>
   </div>
 
-  <input type="file" id="filePsd" class="hidden-input" accept=".psd">
+  <input type="file" id="filePsd" class="hidden-input">
   <input type="file" id="filePng" class="hidden-input" accept="image/png,image/*" multiple>
 
   <script data-goatcounter="https://kogukoring.goatcounter.com/count"
@@ -195,6 +196,6 @@
 
   <script src="lib/ag-psd.js"></script>
   <script src="lib/gif.js"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

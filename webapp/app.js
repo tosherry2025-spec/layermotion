@@ -342,15 +342,18 @@ bind("expScale",v=>{expScaleF=v; scaleVal.textContent=v.toFixed(1);});
 const expStatus=document.getElementById("exportStatus");
 const gifBtn=document.getElementById("exportGif"), vidBtn=document.getElementById("exportVideo");
 
-// QQ 内置浏览器通常会拦截 Blob 文件下载，提前引导到系统浏览器。
-const isQqInApp = /(?:^|\s)QQ\/[\d.]+/i.test(navigator.userAgent) || /V1_(?:AND|IPH)_SQ/i.test(navigator.userAgent);
+// 微信 / QQ 等内置浏览器通常会拦截 Blob 文件下载，提前引导到系统浏览器。
+const ua = navigator.userAgent;
+const isQqInApp = /(?:^|\s)QQ\/[\d.]+/i.test(ua) || /V1_(?:AND|IPH)_SQ/i.test(ua) || /QQBrowser/i.test(ua);
+const isWeChat  = /MicroMessenger/i.test(ua);
+const isInApp   = isQqInApp || isWeChat;
 const qqNotice=document.getElementById("qqNotice");
 function showQqNotice(){ if(qqNotice) qqNotice.hidden=false; }
 function hideQqNotice(){ if(qqNotice) qqNotice.hidden=true; }
 function ensureDownloadBrowser(){
-  if(!isQqInApp) return true;
+  if(!isInApp) return true;
   showQqNotice();
-  expStatus.textContent="QQ 内置浏览器无法可靠保存文件，请先在系统浏览器中打开本页。";
+  expStatus.textContent=(isWeChat?"微信":"QQ")+" 内置浏览器无法可靠保存文件，请先在系统浏览器中打开本页。";
   return false;
 }
 async function copyCurrentUrl(){
@@ -365,7 +368,7 @@ async function copyCurrentUrl(){
 }
 document.getElementById("copyPageUrl")?.addEventListener("click",copyCurrentUrl);
 document.getElementById("dismissQqNotice")?.addEventListener("click",hideQqNotice);
-if(isQqInApp) showQqNotice();
+if(isInApp) showQqNotice();
 
 function exportCanvas(){
   const scale=expScaleF*0.4;

@@ -103,6 +103,16 @@
   /* 图层排序按钮 */
   .layer-row .ord { display:flex; flex-direction:column; gap:1px; }
   .layer-row .ord button { padding:0 6px; font-size:9px; line-height:1.35; background:#eadff5; color:var(--purple); }
+  [hidden] { display:none !important; }
+  .compat-overlay { position:fixed; inset:0; z-index:10000; display:flex; align-items:center;
+    justify-content:center; padding:20px; background:rgba(35,25,45,.55); backdrop-filter:blur(3px); }
+  .compat-card { width:min(420px,100%); padding:20px; border-radius:16px; background:#fff;
+    box-shadow:0 16px 50px rgba(0,0,0,.25); text-align:center; }
+  .compat-card h2 { margin:0 0 10px; color:var(--purple); font-size:18px; }
+  .compat-card p { margin:0 0 14px; color:#666; font-size:13px; line-height:1.7; }
+  .compat-actions { display:flex; gap:8px; }
+  .compat-actions button { flex:1; }
+  .compat-actions .secondary { background:#e8dff0; color:#76518f; }
 
   /* ===== 移动端适配 ===== */
   @media (max-width: 820px) {
@@ -119,6 +129,17 @@
 </style>
 </head>
 <body>
+  <div id="qqNotice" class="compat-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="qqNoticeTitle">
+    <div class="compat-card">
+      <h2 id="qqNoticeTitle">建议使用系统浏览器打开</h2>
+      <p>QQ 内置浏览器可能无法保存 GIF 或视频。请点击右上角「…」，选择「浏览器打开」；也可以复制网址后粘贴到 Safari、Chrome 等浏览器。<br><b>建议先换浏览器再上传素材，以免设置丢失。</b></p>
+      <div class="compat-actions">
+        <button id="copyPageUrl">复制网址</button>
+        <button id="dismissQqNotice" class="secondary">暂时继续</button>
+      </div>
+    </div>
+  </div>
+
   <div class="stage-wrap">
     <div id="stageOuter">
       <canvas id="canvas" width="373" height="498"></canvas>
@@ -196,6 +217,6 @@
 
   <script src="lib/ag-psd.js"></script>
   <script src="lib/gif.js"></script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

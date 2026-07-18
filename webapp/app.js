@@ -342,6 +342,31 @@ bind("expScale",v=>{expScaleF=v; scaleVal.textContent=v.toFixed(1);});
 const expStatus=document.getElementById("exportStatus");
 const gifBtn=document.getElementById("exportGif"), vidBtn=document.getElementById("exportVideo");
 
+// QQ 内置浏览器通常会拦截 Blob 文件下载，提前引导到系统浏览器。
+const isQqInApp = /(?:^|\s)QQ\/[\d.]+/i.test(navigator.userAgent) || /V1_(?:AND|IPH)_SQ/i.test(navigator.userAgent);
+const qqNotice=document.getElementById("qqNotice");
+function showQqNotice(){ if(qqNotice) qqNotice.hidden=false; }
+function hideQqNotice(){ if(qqNotice) qqNotice.hidden=true; }
+function ensureDownloadBrowser(){
+  if(!isQqInApp) return true;
+  showQqNotice();
+  expStatus.textContent="QQ 内置浏览器无法可靠保存文件，请先在系统浏览器中打开本页。";
+  return false;
+}
+async function copyCurrentUrl(){
+  const text=location.href.split("#")[0];
+  try { await navigator.clipboard.writeText(text); }
+  catch(e){
+    const area=document.createElement("textarea"); area.value=text; area.style.position="fixed"; area.style.opacity="0";
+    document.body.appendChild(area); area.select(); document.execCommand("copy"); area.remove();
+  }
+  const btn=document.getElementById("copyPageUrl");
+  if(btn){ const old=btn.textContent; btn.textContent="已复制，请粘贴到浏览器"; setTimeout(()=>btn.textContent=old,2200); }
+}
+document.getElementById("copyPageUrl")?.addEventListener("click",copyCurrentUrl);
+document.getElementById("dismissQqNotice")?.addEventListener("click",hideQqNotice);
+if(isQqInApp) showQqNotice();
+
 function exportCanvas(){
   const scale=expScaleF*0.4;
   const c=document.createElement("canvas");
@@ -364,6 +389,7 @@ async function getGifWorkerUrl(){
 }
 
 gifBtn.onclick=async ()=>{
+  if(!ensureDownloadBrowser()) return;
   if(!layers.length){ expStatus.textContent="请先加载素材"; return; }
   gifBtn.disabled=vidBtn.disabled=true;
   expStatus.textContent="准备编码器…";
@@ -406,6 +432,7 @@ function pickVideoType(){
   return null;
 }
 vidBtn.onclick=()=>{
+  if(!ensureDownloadBrowser()) return;
   if(!layers.length){ expStatus.textContent="请先加载素材"; return; }
   const vt=pickVideoType();
   if(!vt){ expStatus.textContent="此浏览器不支持视频录制，请改用 GIF"; return; }

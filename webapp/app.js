@@ -378,8 +378,21 @@ function exportCanvas(){
 }
 function download(blob,name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),3000); }
 
-// 统计打点（GoatCounter 自定义事件）：证明“真的有人在生成 meme”，无统计时静默跳过
-function track(name){ try{ if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:name, title:name, event:true}); }catch(e){} }
+// ===== 轻量访问统计（直连 GoatCounter /count 端点，绕开 gc.zgo.at 脚本的国内加载问题）=====
+// 用 1x1 像素图片信标，兼容性极好、失败静默、不依赖广告拦截器容易屏蔽的第三方 JS。
+const GC_URL = "https://kogukoring.goatcounter.com/count";
+function gcSend(params){
+  try {
+    const q = new URLSearchParams(params); q.set("rnd", Math.random().toString(36).slice(2));
+    const url = GC_URL + "?" + q.toString();
+    if(navigator.sendBeacon){ navigator.sendBeacon(url); return; }
+    new Image().src = url;
+  } catch(e){}
+}
+// 页面浏览：只在首次打开时发一次
+gcSend({ p: location.pathname, t: document.title, r: document.referrer || "" });
+// 事件（导出 GIF / 视频等）：以 event=1 上报，仪表盘会显示为独立事件
+function track(name){ gcSend({ p: name, t: name, e: 1 }); }
 
 // 把 gif.js 的 worker 下载为本地 Blob，避免跨域 worker 加载失败导致“卡住不下载”
 let gifWorkerUrl=null;

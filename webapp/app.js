@@ -26,6 +26,9 @@ const dropzone = document.getElementById("dropzone");
 // ===== 整体动作（全身一起，同一拍）=====
 const MOTIONS = { none:"无", breathe:"呼吸", bounce:"弹跳", sway:"左右摇" };
 
+// ===== 每层“独立律动”：与叠加效果并行，可同时呼吸/弹跳 + 挥手/飘逸 =====
+const LAYER_RHYTHMS = { none:"无", breathe:"呼吸", bounce:"弹跳" };
+
 // ===== 每层“叠加效果”：叠在整体动作之上，全部锁定在整体节拍的整数倍频率，永不失步 =====
 const STYLES = {
   follow: "跟随整体",   // 只跟随整体动作，不额外加料（默认）
@@ -33,7 +36,7 @@ const STYLES = {
   swing:  "摆动/挥手",  // 绕锚点较大幅度转（手臂）
   jelly:  "Q弹",        // 挤压拉伸（2倍频，仍同步）
   quiver: "颤动",       // 高频小抖（3倍频，确定性、不随机）
-  still:  "稳住不动",   // 完全不动，当地基（连整体动作都不跟）
+  still:  "稳住（不跟整体）", // 不跟整体动作；仍可主动添加独立律动
 };
 
 // 仅用于“智能默认值”：按名字猜一个合理的初始运动方式/深度/锚点，用户可随意改
@@ -69,7 +72,9 @@ function makeLayer(name, img, left, top, w, h, bbox) {
   return {
     name, img, left, top, w, h,
     style: DEFAULT_STYLE[hint] || "follow",
-    gain: 1,                // 该层运动幅度倍率
+    gain: 1,                // 跟随整体 + 叠加效果的幅度倍率
+    rhythm: "none",        // 独立律动：不替换挥手/飘逸等叠加效果
+    rhythmGain: 1,          // 独立律动幅度倍率
     dir,                    // 初始方向：+1 正向 / -1 反向（相位翻转 π）
     visible: true,
     depth: DEFAULT_DEPTH[hint] ?? 0,
@@ -143,7 +148,7 @@ function globalMotionCalc(t) {
   let tx=0, ty=0, rot=0, sx=1, sy=1;
   switch(globalMotion){
     case "breathe": { const b=Math.sin(t*W); sy=1+b*0.02*amp; sx=1-b*0.012*amp; ty=-b*3*amp; break; }
-    case "bounce":  { const b=Math.abs(Math.sin(t*W)); ty=-b*13*amp;
+    case "bounce":  { const b=(1-Math.cos(t*W))/2; ty=-b*13*amp;
       sy=1+(1-b)*0.045*amp-0.02*amp; sx=1-(1-b)*0.035*amp+0.02*amp; break; }
     case "sway":    { tx=Math.sin(t*W)*10*amp; rot=Math.sin(t*W)*1.5*amp; break; }
     case "none": default: break;
@@ -162,25 +167,41 @@ function accentCalc(style, t) {
   }
   return { tx, ty, rot, sx, sy };
 }
-// 合成某层最终变换：整体动作 + 叠加效果，共享时钟。
+// 每层独立律动：单独一条曲线通道，不占用、不替换挥手/飘逸等叠加效果。
+function layerRhythmCalc(rhythm, t) {
+  let tx=0, ty=0, rot=0, sx=1, sy=1;
+  switch(rhythm){
+    case "breathe": { const b=Math.sin(t*W); sy=1+b*0.028*amp; sx=1-b*0.016*amp; ty=-b*2*amp; break; }
+    case "bounce":  { const b=(1-Math.cos(t*W))/2; ty=-b*12*amp;
+      const squash=Math.cos(t*W); sx=1+squash*0.035*amp; sy=1-squash*0.035*amp; break; }
+    case "none": default: break;
+  }
+  return { tx, ty, rot, sx, sy };
+}
+// 合成某层最终变换：整体动作 + 叠加效果 + 独立律动，共享时钟但幅度分开。
 // - 初始方向 dir：反向=相位翻转 π（同频率、同拍，只是反着走，适合左右对称）
-// - 幅度 gain：对该层运动幅度整体缩放（缩放类按“偏离 1 的量”缩放）
+// - gain 控制「跟随整体 + 叠加效果」；rhythmGain 只控制独立律动。
 function styleMotion(L, t) {
-  if (L.style === "still") return { tx:0, ty:0, rot:0, sx:1, sy:1 }; // 稳住：完全不动
   // 相位 = 错落感偏移 + 方向翻转；0 错落感时各层仅相差方向，仍完全同拍
   const ph = followThrough * (1 - L.anchorY) * 1.2 + (L.dir < 0 ? Math.PI : 0);
   const tt = t + ph/W;
-  const g = globalMotionCalc(tt), a = accentCalc(L.style, tt);
-  const k = L.gain;
-  const sx = g.sx * a.sx, sy = g.sy * a.sy;
+  // “稳住不动”只停掉整体跟随与原叠加效果；若主动选择独立律动，它仍可单独运动。
+  const g = L.style === "still" ? {tx:0,ty:0,rot:0,sx:1,sy:1} : globalMotionCalc(tt);
+  const a = accentCalc(L.style, tt);
+  const r = layerRhythmCalc(L.rhythm || "none", tt);
+  const k = Number.isFinite(L.gain) ? L.gain : 1;
+  const rk = Number.isFinite(L.rhythmGain) ? L.rhythmGain : 1;
+  const baseSx = 1 + (g.sx*a.sx-1)*k, baseSy = 1 + (g.sy*a.sy-1)*k;
+  const rhythmSx = 1 + (r.sx-1)*rk, rhythmSy = 1 + (r.sy-1)*rk;
   return {
-    tx:(g.tx+a.tx)*k, ty:(g.ty+a.ty)*k, rot:(g.rot+a.rot)*k,
-    sx:1+(sx-1)*k, sy:1+(sy-1)*k,
+    tx:(g.tx+a.tx)*k+r.tx*rk, ty:(g.ty+a.ty)*k+r.ty*rk, rot:(g.rot+a.rot)*k+r.rot*rk,
+    sx:baseSx*rhythmSx, sy:baseSy*rhythmSy,
   };
 }
 function parallaxVec(t){
   if(p3mode==="mouse") return [mouse.x, mouse.y];
-  return [Math.sin(t*W*0.5), Math.sin(t*W*0.35)*0.4];
+  // 自动视差也锁定为一个基础周期，保证 GIF 首尾可以无缝衔接。
+  return [Math.sin(t*W), Math.cos(t*W)*0.4];
 }
 function drawScene(g, scale, t, transparent) {
   g.clearRect(0,0,g.canvas.width,g.canvas.height);
@@ -216,7 +237,7 @@ function buildLayerList() {
     row.innerHTML=`<span class="drag" style="cursor:grab;color:#c9a7e0">⠿</span>
       <input type="checkbox" ${L.visible?"checked":""}>
       <span class="nm" title="${L.name}">${L.name}</span>
-      <span class="depth-badge">${STYLES[L.style]}</span>
+      <span class="depth-badge">${STYLES[L.style]}${(L.rhythm||"none")!=="none"?" + "+LAYER_RHYTHMS[L.rhythm]:""}</span>
       <span class="ord"><button data-up title="上移(更靠前)">▲</button><button data-dn title="下移(更靠后)">▼</button></span>`;
     row.addEventListener("click",e=>{ if(e.target.type!=="checkbox" && e.target.tagName!=="BUTTON") selectLayer(i); });
     row.querySelector("input").addEventListener("change",e=>{ L.visible=e.target.checked; });
@@ -251,13 +272,20 @@ function selectLayer(i){ selected=i; buildLayerList(); buildEditor(); updateAnch
 function buildEditor(){
   const L=layers[selected];
   if(!L){ editorBox.innerHTML=""; return; }
+  if(!L.rhythm) L.rhythm="none";
+  if(!Number.isFinite(L.rhythmGain)) L.rhythmGain=1;
   editorBox.innerHTML=`<div class="editor">
     <div class="title">✏️ ${L.name}</div>
-    <label>叠加效果（叠在整体动作之上）</label>
+    <label>叠加效果（如挥手/飘逸）</label>
     <select id="edStyle">${Object.entries(STYLES).map(([k,v])=>`<option value="${k}" ${k===L.style?"selected":""}>${v}</option>`).join("")}</select>
-    <label>运动幅度 <span class="val">${L.gain.toFixed(2)}</span>x</label>
+    <label>跟随与效果幅度 <span class="val">${L.gain.toFixed(2)}</span>x</label>
     <input type="range" id="edGain" min="0" max="2.5" step="0.05" value="${L.gain}">
-    <label>初始方向</label>
+    <label style="margin-top:14px">独立律动（可与上方效果同时使用）</label>
+    <select id="edRhythm">${Object.entries(LAYER_RHYTHMS).map(([k,v])=>`<option value="${k}" ${k===L.rhythm?"selected":""}>${v}</option>`).join("")}</select>
+    <label>独立律动幅度 <span class="val">${L.rhythmGain.toFixed(2)}</span>x</label>
+    <input type="range" id="edRhythmGain" min="0" max="2.5" step="0.05" value="${L.rhythmGain}">
+    <p class="hint" style="margin:6px 0 0">例如可同时选择“摆动/挥手 + 呼吸”，两条曲线互不替换。</p>
+    <label>初始方向（作用于全部曲线）</label>
     <button id="edDir" style="width:100%;background:${L.dir<0?'#a05fc4':'#ec7fa9'}">${L.dir<0?"◀ 反向":"正向 ▶"}</button>
     <label>深度(伪3D视差) <span class="val">${L.depth.toFixed(2)}</span></label>
     <input type="range" id="edDepth" min="-1" max="1" step="0.05" value="${L.depth}">
@@ -265,8 +293,10 @@ function buildEditor(){
     <div class="row2"><input type="range" id="edAX" min="0" max="1" step="0.01" value="${L.anchorX}">
       <input type="range" id="edAY" min="0" max="1.1" step="0.01" value="${L.anchorY}"></div>
     <p class="hint" style="margin:8px 0 0">锚点=旋转/缩放中心，可直接在画布上拖粉点。</p></div>`;
-  editorBox.querySelector("#edStyle").onchange=e=>{ L.style=e.target.value; buildLayerList(); };
+  editorBox.querySelector("#edStyle").onchange=e=>{ L.style=e.target.value; buildLayerList(); buildEditor(); };
   editorBox.querySelector("#edGain").oninput=e=>{ L.gain=+e.target.value; buildEditor(); };
+  editorBox.querySelector("#edRhythm").onchange=e=>{ L.rhythm=e.target.value; buildLayerList(); buildEditor(); };
+  editorBox.querySelector("#edRhythmGain").oninput=e=>{ L.rhythmGain=+e.target.value; buildEditor(); };
   editorBox.querySelector("#edDir").onclick=()=>{ L.dir=-L.dir; buildEditor(); };
   editorBox.querySelector("#edDepth").oninput=e=>{ L.depth=+e.target.value; buildEditor(); };
   editorBox.querySelector("#edAX").oninput=e=>{ L.anchorX=+e.target.value; buildEditor(); updateAnchorHandle(); };
@@ -422,12 +452,15 @@ gifBtn.onclick=async ()=>{
   const { c, ctx:g, scale }=exportCanvas();
   const transparent=bgTransparent;
   const KEY=0xFF00FF;  // 品红作为透明键色（仅填充全透明像素，边缘做硬阈值，无彩边）
-  const opts={ workers:2, quality:10, width:c.width, height:c.height, workerScript:workerUrl };
+  const opts={ workers:2, quality:10, repeat:0, width:c.width, height:c.height, workerScript:workerUrl };
   if(transparent) opts.transparent=KEY;
   const gif=new GIF(opts);
-  const frames=Math.round(expDur*expFps), delay=Math.round(1000/expFps);
+  // GIF 始终只编码一个完整基础周期；最后一帧之后正好接回第一帧，并由 repeat:0 无限循环。
+  const loopSeconds=1/Math.max(speed,0.01);
+  const frames=Math.max(2,Math.round(loopSeconds*expFps));
+  const delay=Math.max(10,Math.round(loopSeconds*1000/frames));
   for(let i=0;i<frames;i++){
-    drawScene(g, scale, i/expFps*speed, transparent);
+    drawScene(g, scale, i/frames, transparent);
     if(transparent){
       const img=g.getImageData(0,0,c.width,c.height), d=img.data;
       for(let j=0;j<d.length;j+=4){
@@ -440,11 +473,11 @@ gifBtn.onclick=async ()=>{
     }
   }
   let done=false;
-  const guard=setTimeout(()=>{ if(!done) expStatus.textContent="仍在编码…素材较大时请再等等，或调低时长/清晰度"; },12000);
-  gif.on("progress",p=>{ expStatus.textContent=`合成 GIF… ${Math.round(p*100)}%`; });
+  const guard=setTimeout(()=>{ if(!done) expStatus.textContent="仍在编码…素材较大时请再等等，或调低帧率/清晰度"; },12000);
+  gif.on("progress",p=>{ expStatus.textContent=`合成无缝循环 GIF… ${Math.round(p*100)}%`; });
   gif.on("finished",blob=>{ done=true; clearTimeout(guard); download(blob,"meme.gif"); track("export-gif");
-    expStatus.textContent=`✅ 已导出 meme.gif (${(blob.size/1024).toFixed(0)} KB)`; gifBtn.disabled=vidBtn.disabled=false; });
-  expStatus.textContent=`渲染 GIF… 0%（共 ${frames} 帧）`;
+    expStatus.textContent=`✅ 已导出无限循环 GIF (${loopSeconds.toFixed(2)} 秒/轮，${(blob.size/1024).toFixed(0)} KB)`; gifBtn.disabled=vidBtn.disabled=false; });
+  expStatus.textContent=`渲染完整循环… ${loopSeconds.toFixed(2)} 秒/轮（共 ${frames} 帧）`;
   gif.render();
 };
 

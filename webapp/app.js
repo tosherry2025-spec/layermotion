@@ -381,18 +381,25 @@ function download(blob,name){ const a=document.createElement("a"); a.href=URL.cr
 // ===== 轻量访问统计（直连 GoatCounter /count 端点，绕开 gc.zgo.at 脚本的国内加载问题）=====
 // 用 1x1 像素图片信标，兼容性极好、失败静默、不依赖广告拦截器容易屏蔽的第三方 JS。
 const GC_URL = "https://kogukoring.goatcounter.com/count";
+const gcPixels = new Set(); // 保持引用，避免 Safari 在请求完成前回收 Image
 function gcSend(params){
   try {
-    const q = new URLSearchParams(params); q.set("rnd", Math.random().toString(36).slice(2));
-    const url = GC_URL + "?" + q.toString();
-    if(navigator.sendBeacon){ navigator.sendBeacon(url); return; }
-    new Image().src = url;
+    const q = new URLSearchParams(params);
+    const screenWidth = window.screen?.width || document.documentElement.clientWidth || 0;
+    const screenHeight = window.screen?.height || document.documentElement.clientHeight || 0;
+    q.set("s", `${screenWidth},${screenHeight},${window.devicePixelRatio || 1}`);
+    q.set("rnd", Math.random().toString(36).slice(2));
+    const pixel = new Image(1,1);
+    gcPixels.add(pixel);
+    pixel.onload = pixel.onerror = ()=>gcPixels.delete(pixel);
+    pixel.src = GC_URL + "?" + q.toString(); // GoatCounter /count 的标准 GET 像素请求
   } catch(e){}
 }
-// 页面浏览：只在首次打开时发一次
-gcSend({ p: location.pathname, t: document.title, r: document.referrer || "" });
-// 事件（导出 GIF / 视频等）：以 event=1 上报，仪表盘会显示为独立事件
-function track(name){ gcSend({ p: name, t: name, e: 1 }); }
+// 页面浏览：固定路径可让 github.io 与未来自定义域名合并到同一项
+// User-Agent 与客户端 IP 由浏览器请求头自动携带，用于设备/系统/地区聚合。
+gcSend({ p:"/layermotion", t:document.title, r:document.referrer || "" });
+// 事件（导出 GIF / 视频等）
+function track(name){ gcSend({ p:name, t:name, e:"1" }); }
 
 // 把 gif.js 的 worker 下载为本地 Blob，避免跨域 worker 加载失败导致“卡住不下载”
 let gifWorkerUrl=null;
@@ -457,9 +464,9 @@ vidBtn.onclick=()=>{
   // 平滑关键：用 captureStream(0)+track.requestFrame() 逐帧推送每一帧真实画面，
   // 而不是让浏览器按固定低帧率自行采样（那样会漏帧/重复 → 卡顿）。
   let stream=c.captureStream(0);
-  let track=stream.getVideoTracks()[0];
-  const manual = typeof track.requestFrame === "function";
-  if(!manual){ stream=c.captureStream(60); track=stream.getVideoTracks()[0]; } // 老浏览器退回自动采样
+  let videoTrack=stream.getVideoTracks()[0];
+  const manual = typeof videoTrack.requestFrame === "function";
+  if(!manual){ stream=c.captureStream(60); videoTrack=stream.getVideoTracks()[0]; } // 老浏览器退回自动采样
   const rec=new MediaRecorder(stream,{ mimeType:vt.mime, videoBitsPerSecond:8_000_000 });
   const chunks=[]; rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
   rec.onstop=()=>{ const blob=new Blob(chunks,{type:vt.mime}); download(blob,"meme."+vt.ext); track("export-video");
@@ -470,7 +477,7 @@ vidBtn.onclick=()=>{
   (function loop(now){ const t=(now-start)/1000;
     if(t>=expDur){ rec.stop(); return; }
     drawScene(g, scale, t*speed, false); // 视频始终白底
-    if(manual) track.requestFrame();     // 手动把这一帧塞进视频流
+    if(manual) videoTrack.requestFrame(); // 手动把这一帧塞进视频流
     expStatus.textContent=`录制 ${vt.ext.toUpperCase()}… ${t.toFixed(1)}/${expDur}s ${note}`;
     requestAnimationFrame(loop); })(start);
 };

@@ -2,7 +2,7 @@
 
 上传分层的透明 PNG（或 PSD），逐层设置运动方式，一键导出会动的 GIF / MP4 表情包。
 
-**🌐 在线使用：** https://tosherry2025-spec.github.io/layermotion/
+**🌐 在线使用：** https://layermotion.click/
 
 ![演示](webapp/preview.gif)
 
